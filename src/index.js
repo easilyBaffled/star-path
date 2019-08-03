@@ -7,6 +7,7 @@ import { Provider, useSelector, useDispatch } from "react-redux";
 import { motion } from "framer-motion";
 import cs from "console.tap";
 import "./styles.css";
+import useHandleController from "./useHandleController";
 import reducer, {
   isAnimating,
   actions as directorActions
@@ -58,12 +59,12 @@ const Entity = ({ id, moving, ...e }) => {
   const lengthAlongPath = getLength(e);
 
   const { x, y } = getPositionFromPath(path, lengthAlongPath);
-  console.log({ x, y });
+
   const dispatch = useEntityDispatch(id);
 
   useEffect(() => {
     const nearestPathId = findNearestPath({ x, y, r: radius });
-    console.log(nearestPathId);
+
     if (
       nearestPathId &&
       nearestPathId !== getPathId(e) &&
@@ -118,13 +119,15 @@ const Test = React.forwardRef((props, ref) => {
 
 function App() {
   const paths = usePaths();
-
+  const { Controller, powerLevels } = useHandleController({});
+  console.log(powerLevels);
   return (
     <PathsContext.Provider
       value={{ paths, findNearestPath: findNearestPath(paths) }}
     >
       <Provider store={store}>
         <div className="App">
+          <Controller />
           <svg viewBox="0 0 700 600" height="50vh" width="50vw">
             {Object.entries(paths).map(([id, { instructions, ref }]) => (
               <path
