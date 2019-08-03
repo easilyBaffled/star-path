@@ -1,4 +1,4 @@
-import R from "ramda";
+import * as R from "ramda";
 import { createActions, createReducer } from "../../util";
 
 const intialState = [];
@@ -9,7 +9,7 @@ export const actors = {
   add: (...args) => s => s.concat(args),
   addInvalidMove: () => actors.add(invalidMove),
   set: (...args) => () => args,
-  remove: (...args) => s => console.tap(s.filter(v => !args.includes(v)))
+  remove: (...args) => s => s.filter(v => !args.includes(v))
 };
 
 export const actions = createActions(actors);

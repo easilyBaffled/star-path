@@ -7,16 +7,18 @@ import { Provider, useSelector, useDispatch } from "react-redux";
 import { motion } from "framer-motion";
 import cs from "console.tap";
 import "./styles.css";
-import useHandleController from "./useHandleController";
+import useHandleController from "./hooks/useHandleController";
 import reducer, {
   isAnimating,
   actions as directorActions
 } from "./state/director";
-import { getEntitiesArray } from "./state/entities/entities";
+import { getEntitiesArray, getEntity } from "./state/entities/entities";
 import { getRadius } from "./state/attributes/body";
 import {
   getEnginePower,
-  meetsPowerRequirements
+  meetsPowerRequirements,
+  actions as powerActions,
+  getPowerLevels
 } from "./state/attributes/power";
 import {
   actions as pathPositionActions,
@@ -50,6 +52,7 @@ const getPositionFromPath = (pathRef, len) =>
     : { x: 0, y: 0 };
 
 const Entity = ({ id, moving, ...e }) => {
+  const dispatch = useEntityDispatch(id);
   const radius = getRadius(e);
   const enginePower = getEnginePower(e);
   const { paths, findNearestPath } = useContext(PathsContext);
@@ -59,8 +62,6 @@ const Entity = ({ id, moving, ...e }) => {
   const lengthAlongPath = getLength(e);
 
   const { x, y } = getPositionFromPath(path, lengthAlongPath);
-
-  const dispatch = useEntityDispatch(id);
 
   useEffect(() => {
     const nearestPathId = findNearestPath({ x, y, r: radius });
@@ -117,33 +118,74 @@ const Test = React.forwardRef((props, ref) => {
   ));
 });
 
+const PowerLevels = () => {
+  const { totalPower, engine, weapons, shields } = useSelector(s =>
+    getPowerLevels(getEntity("player", s))
+  );
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        position: "fixed",
+        bottom: "10vh",
+        left: 0,
+        right: 0,
+        fontSize: 26
+      }}
+    >
+      <code>{Math.floor(totalPower)}</code>
+      <code style={{ color: "black" }}>{Math.floor(engine)}</code>
+      <code style={{ color: "blue" }}>{Math.floor(weapons)}</code>
+      <code style={{ color: "green" }}>{Math.floor(shields)}</code>
+    </div>
+  );
+};
+
+const Game = ({ paths }) => {
+  const playerDispatch = useEntityDispatch("player");
+  const { Controller } = useHandleController({
+    onArcChange: ({ rock, paper, scissor }) => {
+      playerDispatch(
+        powerActions.setPowerLevels({
+          engine: rock,
+          weapons: paper,
+          shields: scissor
+        })
+      );
+    }
+  });
+  return (
+    <div className="App">
+      <Controller />
+      <svg viewBox="0 0 700 600" height="50vh" width="50vw">
+        {Object.entries(paths).map(([id, { instructions, ref }]) => (
+          <path
+            key={id}
+            stroke="#0268B1"
+            strokeWidth="5"
+            fill="none"
+            ref={ref}
+            d={instructions}
+          />
+        ))}
+        <Test />
+      </svg>
+      <PowerLevels />
+    </div>
+  );
+};
+
 function App() {
   const paths = usePaths();
-  const { Controller, powerLevels } = useHandleController({});
-  console.log(powerLevels);
+
   return (
     <PathsContext.Provider
       value={{ paths, findNearestPath: findNearestPath(paths) }}
     >
       <Provider store={store}>
-        <div className="App">
-          <Controller />
-          <svg viewBox="0 0 700 600" height="50vh" width="50vw">
-            {Object.entries(paths).map(([id, { instructions, ref }]) => (
-              <path
-                key={id}
-                stroke="#0268B1"
-                strokeWidth="5"
-                fill="none"
-                ref={ref}
-                d={instructions}
-              />
-            ))}
-            <Test />
-          </svg>
-          <h1>Hello CodeSandbox</h1>
-          <h2>Start editing to see some magic happen!</h2>
-        </div>
+        <Game paths={paths} />
       </Provider>
     </PathsContext.Provider>
   );

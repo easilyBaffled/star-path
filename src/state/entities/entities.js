@@ -1,5 +1,5 @@
 import _ from "lodash";
-import R from "ramda";
+import * as R from "ramda";
 import { createActions, createReducer } from "../../util";
 import { actions as bodyActions } from "../attributes/body";
 

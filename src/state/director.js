@@ -1,4 +1,4 @@
-import R from "ramda";
+import * as R from "ramda";
 import { combineReducers } from "redux";
 import { createActions } from "../util";
 import entities, { getEntity } from "./entities/entities";
@@ -42,6 +42,7 @@ const directedApp = (...args) => {
     const res = console.tap(director(reducers(...args), ...args));
     console.groupEnd();
     return res;
+    //return director(reducers(...args), ...args);
   } catch (e) {
     console.groupEnd();
     console.error(...args);

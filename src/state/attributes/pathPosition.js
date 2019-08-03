@@ -1,4 +1,4 @@
-import R from "ramda";
+import * as R from 'ramda'
 import { createActions, createReducer } from "../../util";
 
 const pathPosition = R.lensPath(["pathPosition"]);

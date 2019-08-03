@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
-import ReactDOM from "react-dom";
+
 import _ from "lodash";
-import "./styles.css";
+// import "./styles.css";
 import { useEventListener } from "./useEventHandler";
 
 console.tap = (v, l = "") => (console.log(l, v), v);
@@ -42,9 +42,8 @@ const ControllerSVG = ({
   circ = 2 * Math.PI * r,
   ...svgProps
 }) => {
-  useEffect(() => {
-    window.addEventListener("mouseup", () => toggleRecord(false));
-  }, []);
+  useEventListener("mouseup", () => toggleRecord(false));
+
   const center = { x: vSize / 2, y: vSize / 2 };
 
   let rcs = find_angle(rockPos, scissorPos, center);
@@ -164,7 +163,37 @@ const ControllerSVG = ({
   );
 };
 
-const useHandleController = ({ vSize = 100, radius = (vSize * 0.9) / 2 }) => {
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error) {
+    // Update state so the next render will show the fallback UI.
+    return { hasError: true };
+  }
+
+  componentDidCatch(error, info) {
+    // You can also log the error to an error reporting service
+    console.error(error, info);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      // You can render any custom fallback UI
+      return <h1>Something went wrong.</h1>;
+    }
+
+    return this.props.children;
+  }
+}
+
+const useHandleController = ({
+  vSize = 100,
+  radius = (vSize * 0.9) / 2,
+  onArcChange
+}) => {
   const svgRef = useRef(null);
   const dragControl = drag(radius, vSize / 2, vSize / 2);
   const [powerLevels, setPowerLevels] = useState({
@@ -181,9 +210,6 @@ const useHandleController = ({ vSize = 100, radius = (vSize * 0.9) / 2 }) => {
   const handler = useCallback(
     ({ clientX, clientY }) => {
       const svgBox = svgRef.current.getBoundingClientRect();
-      // const rockBox = rock.current.getBoundingClientRect();
-      // const paperBox = paper.current.getBoundingClientRect();
-      // const scissorBox = scisor.current.getBoundingClientRect();
       const pos = dragControl({
         x: clientX - svgBox.left,
         y: clientY - svgBox.top
@@ -202,18 +228,19 @@ const useHandleController = ({ vSize = 100, radius = (vSize * 0.9) / 2 }) => {
   );
 
   useEventListener("mousemove", handler);
-  const powerLevels = "";
+
   const Controller = (props = {}) => (
-    <ControllerSVG
-      {...props}
-      key="controlComponent"
-      rockPos={rockPos}
-      svgRef={svgRef}
-      toggleRecord={toggleRecord}
-      paperPos={paperPos}
-      scissorPos={scissorPos}
-      onArcChange={setPowerLevels}
-    />
+    <ErrorBoundary>
+      <ControllerSVG
+        {...props}
+        rockPos={rockPos}
+        svgRef={svgRef}
+        toggleRecord={toggleRecord}
+        paperPos={paperPos}
+        scissorPos={scissorPos}
+        onArcChange={onArcChange || setPowerLevels}
+      />
+    </ErrorBoundary>
   );
   return { Controller, powerLevels };
 };
