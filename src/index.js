@@ -2,8 +2,8 @@ import React, { useState, useContext, useEffect, useRef } from "react";
 import ReactDOM from "react-dom";
 import { devToolsEnhancer } from "redux-devtools-extension";
 import { createStore } from "redux";
-import { Provider, useSelector, shallowEqual, useDispatch } from "react-redux";
-import _ from "lodash";
+import { Provider, useSelector, useDispatch } from "react-redux";
+
 import { motion } from "framer-motion";
 import cs from "console.tap";
 import "./styles.css";
@@ -12,15 +12,8 @@ import reducer, {
   actions as directorActions
 } from "./state/director";
 import { getEntitiesArray } from "./state/entities/entities";
-import {
-  actions as move,
-  getPosition,
-  getRadius
-} from "./state/attributes/body";
-import {
-  actions as powerMoves,
-  getEnginePower
-} from "./state/attributes/power";
+import { getRadius } from "./state/attributes/body";
+import { getEnginePower } from "./state/attributes/power";
 import {
   actions as pathPositionActions,
   getPathId,
@@ -42,11 +35,6 @@ const useAnimationEndAction = (id, additionalDispatch) => {
     if (additionalDispatch) additionalDispatch();
     dispatch(directorActions.doneAnimating(id));
   };
-};
-
-const useAnimationBlock = (entityId, isAnimating) => {
-  const dispatch = useEntityDispatch(entityId);
-  return action => !isAnimating && dispatch(action);
 };
 
 const store = createStore(reducer, devToolsEnhancer());
@@ -119,7 +107,6 @@ function App() {
   const [paths, setPaths] = useState({ 0: path0 });
 
   useEffect(() => {
-    console.log(path0);
     setPaths(s => ({ ...s, 0: path0 }));
   }, [path0]);
   return (
