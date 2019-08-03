@@ -17,7 +17,7 @@
     "redux-devtools-extension": "2.13.8"
   },
   "devDependencies": {
-    "typescript": "3.3.3"
+    "typescript": "3.5.3"
   },
   "scripts": {
     "start": "react-scripts start",
