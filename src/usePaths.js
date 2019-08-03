@@ -1,13 +1,13 @@
 import { useRef } from "react";
 export default () => ({
-  path0: {
+  0: {
     startPosition: { x: 630, y: 400 },
     instructions:
       "M 630 400 Q 600 70 500 250 Q 350 580 200 250 Q 100 70 80 400 Q 80 510 350 525 Q 600 510 630 400 Z",
     ref: useRef(null),
     requirement: {}
   },
-  path1: {
+  1: {
     startPosition: { x: 443.48822021484375, y: 350.9056701660156 },
     instructions: "M443.48822021484375 350.9056701660156 l -50 -50 l 0 -100",
     ref: useRef(null),

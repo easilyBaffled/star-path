@@ -44,39 +44,40 @@ const useAnimationEndAction = (id, additionalDispatch) => {
 const store = createStore(reducer, devToolsEnhancer());
 
 const getPositionFromPath = (pathRef, len) =>
-  pathRef && pathRef.current
-    ? pathRef.current.getPointAtLength(len)
+  pathRef && pathRef.ref.current
+    ? pathRef.ref.current.getPointAtLength(len)
     : { x: 0, y: 0 };
 
 const Entity = ({ id, moving, ...e }) => {
   const radius = getRadius(e);
   const enginePower = getEnginePower(e);
   const { paths, findNearestPath } = useContext(PathsContext);
+
   const path = paths[getPathId(e)];
 
   const lengthAlongPath = getLength(e);
-  console.log("p", getPathId(e), path, lengthAlongPath, enginePower);
 
   const { x, y } = getPositionFromPath(path, lengthAlongPath);
-
+  console.log({ x, y });
   const dispatch = useEntityDispatch(id);
 
   useEffect(() => {
     const nearestPathId = findNearestPath({ x, y, r: radius });
+    console.log(nearestPathId);
     if (
       nearestPathId &&
       nearestPathId !== getPathId(e) &&
-      meetsPowerRequirements(paths[nearestPathId].requirements, e)
+      meetsPowerRequirements(paths[nearestPathId].requirement, e)
     )
       dispatch(pathPositionActions.changePath(nearestPathId));
 
-    if (lengthAlongPath < 5000 && !moving)
+    if (lengthAlongPath < 10000 && !moving)
       dispatch(pathPositionActions.increaseLength(enginePower));
   }, [moving, dispatch, enginePower, lengthAlongPath]);
-  console.log({ x, y });
+
   const variants = {
     move: {
-      transition: { ease: "linear", duration: 0.6 },
+      transition: { ease: "linear", duration: 0.2 },
       cx: x,
       cy: y
     },
@@ -90,8 +91,8 @@ const Entity = ({ id, moving, ...e }) => {
     <motion.circle
       key={id}
       className="box"
-      cx={getPositionFromPath(0)}
-      cy={getPositionFromPath(0)}
+      cx={getPositionFromPath(path, 0).x}
+      cy={getPositionFromPath(path, 0).y}
       r={radius}
       style={{
         fill: "tomato",
