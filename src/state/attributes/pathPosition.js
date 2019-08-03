@@ -14,16 +14,20 @@ export const actors = {
   setLength: l => R.set(lenPos, l),
   increaseLength: addition => R.over(lenPos, l => l + addition),
   decreaseLength: reduction => R.over(lenPos, l => l - reduction),
-  changePath: newId => R.set(pathId, newId)
+  changePath: newId =>
+    R.pipe(
+      R.set(pathId, newId),
+      R.set(lenPos, 0)
+    )
 };
 
 export const actions = createActions(actors);
 export default createReducer(actors, initialState);
 
 const getter = (...lenses) =>
-  R.compose(
-    pathPosition,
-    ...lenses
+  R.pipe(
+    ...lenses,
+    pathPosition
   );
 
 export const getLength = R.view(getter(lenPos));

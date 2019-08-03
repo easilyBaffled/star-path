@@ -13,7 +13,10 @@ import reducer, {
 } from "./state/director";
 import { getEntitiesArray } from "./state/entities/entities";
 import { getRadius } from "./state/attributes/body";
-import { getEnginePower } from "./state/attributes/power";
+import {
+  getEnginePower,
+  meetsPowerRequirements
+} from "./state/attributes/power";
 import {
   actions as pathPositionActions,
   getPathId,
@@ -25,6 +28,7 @@ import {
   invalidMove
 } from "./state/attributes/validation";
 import { useEntityDispatch } from "./util";
+import usePaths, { findNearestPath } from "./usePaths";
 console = cs;
 
 const PathsContext = React.createContext();
@@ -45,8 +49,10 @@ const getPositionFromPath = (pathRef, len) =>
     : { x: 0, y: 0 };
 
 const Entity = ({ id, moving, ...e }) => {
+  const radius = getRadius(e);
   const enginePower = getEnginePower(e);
-  const path = console.tap(useContext(PathsContext))[getPathId(e)];
+  const { paths, findNearestPath } = useContext(PathsContext);
+  const path = paths[getPathId(e)];
 
   const lengthAlongPath = getLength(e);
   console.log("p", getPathId(e), path, lengthAlongPath, enginePower);
@@ -56,8 +62,15 @@ const Entity = ({ id, moving, ...e }) => {
   const dispatch = useEntityDispatch(id);
 
   useEffect(() => {
-    lengthAlongPath < 5000 &&
-      !moving &&
+    const nearestPathId = findNearestPath({ x, y, r: radius });
+    if (
+      nearestPathId &&
+      nearestPathId !== getPathId(e) &&
+      meetsPowerRequirements(paths[nearestPathId].requirements, e)
+    )
+      dispatch(pathPositionActions.changePath(nearestPathId));
+
+    if (lengthAlongPath < 5000 && !moving)
       dispatch(pathPositionActions.increaseLength(enginePower));
   }, [moving, dispatch, enginePower, lengthAlongPath]);
   console.log({ x, y });
@@ -79,7 +92,7 @@ const Entity = ({ id, moving, ...e }) => {
       className="box"
       cx={getPositionFromPath(0)}
       cy={getPositionFromPath(0)}
-      r={getRadius(e)}
+      r={radius}
       style={{
         fill: "tomato",
         z: 0
@@ -103,23 +116,25 @@ const Test = React.forwardRef((props, ref) => {
 });
 
 function App() {
-  const path0 = useRef(null);
-  const [paths, setPaths] = useState({ 0: path0 });
+  const paths = usePaths();
 
-  useEffect(() => {
-    setPaths(s => ({ ...s, 0: path0 }));
-  }, [path0]);
   return (
-    <PathsContext.Provider value={paths}>
+    <PathsContext.Provider
+      value={{ paths, findNearestPath: findNearestPath(paths) }}
+    >
       <Provider store={store}>
         <div className="App">
           <svg viewBox="0 0 700 600" height="50vh" width="50vw">
-            <path
-              key="path0"
-              stroke="#0268B1"
-              ref={path0}
-              d="M 630 400 Q 600 70 500 250 Q 350 580 200 250 Q 100 70 80 400 Q 80 510 350 525 Q 600 510 630 400 Z"
-            />
+            {Object.entries(paths).map(([id, { instructions, ref }]) => (
+              <path
+                key={id}
+                stroke="#0268B1"
+                strokeWidth="5"
+                fill="none"
+                ref={ref}
+                d={instructions}
+              />
+            ))}
             <Test />
           </svg>
           <h1>Hello CodeSandbox</h1>
