@@ -7,5 +7,6 @@ export default combineReducers({
   body,
   validation,
   power,
-  pathPosition
+  pathPosition,
+  collider: (v = {}) => v
 });

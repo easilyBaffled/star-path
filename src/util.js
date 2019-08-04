@@ -36,7 +36,7 @@ export const useEntityDispatch = entityId => {
 
 export const variants = ({ x, y, size }) => ({
   default: {
-    x: console.tap(x * size, "varian"),
+    x: x * size,
     y: y * size,
     transition: { ease: [0, 0, 0.36, 1], duration: 0.6 }
   },

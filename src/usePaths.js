@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import _ from "lodash";
 export default () => ({
   0: {
     startPosition: { x: 630, y: 400 },
@@ -11,8 +12,20 @@ export default () => ({
     startPosition: { x: 443.48822021484375, y: 350.9056701660156 },
     instructions: "M443.48822021484375 350.9056701660156 l -50 -50 l 0 -100",
     ref: useRef(null),
-    requirement: { engine: 50 }
-  }
+    requirement: { engine: 50 },
+    stroke: "black"
+  },
+  ..._.fromPairs(
+    Array.from({ length: 20 }, (__, i) => [
+      "_" + i,
+      {
+        startPosition: { x: 0, y: 0 },
+        instructions: "M0 0 L 0 0",
+        ref: useRef(null),
+        requirement: { engine: 1000 }
+      }
+    ])
+  )
 });
 
 export const findNearestPath = paths => ({ x, y, r }) => {

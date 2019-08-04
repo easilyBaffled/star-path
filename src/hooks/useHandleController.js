@@ -68,7 +68,7 @@ const ControllerSVG = ({
 }) => {
   useEventListener("mouseup", () => toggleRecord(false));
 
-  const [rockToScissor, scissorToPaper, paperToRock] = arcs;
+  const [rockToScissor = 1, scissorToPaper = 1, paperToRock = 1] = arcs;
 
   return (
     <svg
