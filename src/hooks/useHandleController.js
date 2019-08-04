@@ -1,16 +1,13 @@
-import React, { useEffect, useState, useCallback, useRef } from "react";
-
+import React, { useCallback, useRef, useReducer } from "react";
+import { createActions, createReducer } from "../util";
 import _ from "lodash";
-// import "./styles.css";
 import { useEventListener } from "./useEventHandler";
 
-console.tap = (v, l = "") => (console.log(l, v), v);
-
 const drag = (radius, cx, cy) => ({ x, y }) => {
-  var dx = x - cx;
-  var dy = y - cy;
+  const dx = x - cx;
+  const dy = y - cy;
 
-  var scale = radius / Math.sqrt(dx * dx + dy * dy);
+  const scale = radius / Math.sqrt(dx * dx + dy * dy);
 
   return {
     x: dx * scale + cx,
@@ -19,9 +16,9 @@ const drag = (radius, cx, cy) => ({ x, y }) => {
 };
 
 const find_angle = (p0, p1, c) => {
-  var p0c = Math.sqrt(Math.pow(c.x - p0.x, 2) + Math.pow(c.y - p0.y, 2)); // p0->c (b)
-  var p1c = Math.sqrt(Math.pow(c.x - p1.x, 2) + Math.pow(c.y - p1.y, 2)); // p1->c (a)
-  var p0p1 = Math.sqrt(Math.pow(p1.x - p0.x, 2) + Math.pow(p1.y - p0.y, 2)); // p0->p1 (c)
+  const p0c = Math.sqrt(Math.pow(c.x - p0.x, 2) + Math.pow(c.y - p0.y, 2)); // p0->c (b)
+  const p1c = Math.sqrt(Math.pow(c.x - p1.x, 2) + Math.pow(c.y - p1.y, 2)); // p1->c (a)
+  const p0p1 = Math.sqrt(Math.pow(p1.x - p0.x, 2) + Math.pow(p1.y - p0.y, 2)); // p0->p1 (c)
   return (
     (180 / Math.PI) *
     Math.acos((p1c * p1c + p0c * p0c - p0p1 * p0p1) / (2 * p1c * p0c))
@@ -29,6 +26,32 @@ const find_angle = (p0, p1, c) => {
 };
 
 const arcLength = (angle, r) => (angle / 360) * (2 * Math.PI * r);
+
+const adjsutAngles = ({ rcs, scp, rcp }) => {
+  let d = { rcs, scp, rcp };
+  if (rcs + scp + rcp < 360) {
+    const [largest, ...rest] = Object.entries({ rcs, scp, rcp }).sort(
+      ([_, a], [__, b]) => b - a
+    );
+
+    d = _.fromPairs([[largest[0], 360 - largest[1]], ...rest]);
+  }
+  return d;
+};
+
+const findAngles = (rockPos, scissorPos, paperPos, center) => {
+  let rcs = find_angle(rockPos, scissorPos, center);
+  let scp = find_angle(scissorPos, paperPos, center);
+  let rcp = find_angle(rockPos, paperPos, center);
+
+  return adjsutAngles({ rcs, scp, rcp });
+};
+
+const calculateArcs = ({ rcs, scp, rcp }, r) => [
+  arcLength(rcs, r),
+  arcLength(scp, r),
+  arcLength(rcp, r)
+];
 
 const ControllerSVG = ({
   toggleRecord,
@@ -40,36 +63,12 @@ const ControllerSVG = ({
   r = 45,
   vSize = 100,
   circ = 2 * Math.PI * r,
+  arcs,
   ...svgProps
 }) => {
   useEventListener("mouseup", () => toggleRecord(false));
 
-  const center = { x: vSize / 2, y: vSize / 2 };
-
-  let rcs = find_angle(rockPos, scissorPos, center);
-  let scp = find_angle(scissorPos, paperPos, center);
-  let rcp = find_angle(rockPos, paperPos, center);
-
-  let d = { rcs, scp, rcp };
-  if (rcs + scp + rcp < 360) {
-    const [largest, ...rest] = Object.entries({ rcs, scp, rcp }).sort(
-      ([_, a], [__, b]) => b - a
-    );
-
-    d = _.fromPairs([[largest[0], 360 - largest[1]], ...rest]);
-  }
-
-  const rockToScissor = arcLength(d.rcs, r);
-  const scissorToPaper = arcLength(d.scp, r);
-  const paperToRock = arcLength(d.rcp, r);
-
-  useEffect(() => {
-    onArcChange({
-      rock: (rockToScissor / circ) * 100,
-      paper: (scissorToPaper / circ) * 100,
-      scissor: (paperToRock / circ) * 100
-    });
-  }, [rockToScissor, scissorToPaper, paperToRock, circ, onArcChange]);
+  const [rockToScissor, scissorToPaper, paperToRock] = arcs;
 
   return (
     <svg
@@ -103,7 +102,7 @@ const ControllerSVG = ({
         } 0 ${scissorPos.x} ${scissorPos.y}
         `}
         stroke="black"
-        stroke-width="5"
+        strokeWidth="5"
         fill="none"
       />
       <path
@@ -115,7 +114,7 @@ const ControllerSVG = ({
         } 0 ${rockPos.x} ${rockPos.y}
         `}
         stroke="blue"
-        stroke-width="5"
+        strokeWidth="5"
         fill="none"
       />
       <path
@@ -127,7 +126,7 @@ const ControllerSVG = ({
         }0 ${paperPos.x} ${paperPos.y}
         `}
         stroke="green"
-        stroke-width="5"
+        strokeWidth="5"
         fill="none"
       />
       <circle
@@ -189,6 +188,25 @@ class ErrorBoundary extends React.Component {
   }
 }
 
+const actors = {
+  toggleRecord: record => s => ({ ...s, record }),
+  // setScissorPos: scissorPos => s => ({ ...s, scissorPos }),
+  // setPaperPos: paperPos => s => ({ ...s, paperPos }),
+  // setRockPos: rockPos => s => ({ ...s, rockPos }),
+  // setArcs: arcs => s => ({ ...s, arcs }),
+  bigUpdate: newS => s => ({ ...s, ...newS })
+};
+
+const actions = createActions(actors);
+
+const initalizeState = dragControl => ({
+  arcs: [],
+  rockPos: dragControl({ x: 40, y: 75 }),
+  paperPos: dragControl({ x: 0, y: 0 }),
+  scissorPos: dragControl({ x: 200, y: 200 }),
+  record: false
+});
+
 const useHandleController = ({
   vSize = 100,
   radius = (vSize * 0.9) / 2,
@@ -196,16 +214,11 @@ const useHandleController = ({
 }) => {
   const svgRef = useRef(null);
   const dragControl = drag(radius, vSize / 2, vSize / 2);
-  const [powerLevels, setPowerLevels] = useState({
-    rock: 0,
-    paper: 0,
-    scissor: 0
-  });
-
-  const [rockPos, setRockPos] = useState(dragControl({ x: 40, y: 75 }));
-  const [paperPos, setPaperPos] = useState(dragControl({ x: 0, y: 0 }));
-  const [scissorPos, setScissorPos] = useState(dragControl({ x: 200, y: 200 }));
-  const [record, toggleRecord] = useState(false);
+  const initialState = initalizeState(dragControl);
+  const [state, dispatch] = useReducer(
+    createReducer(actors, initialState),
+    initialState
+  );
 
   const handler = useCallback(
     ({ clientX, clientY }) => {
@@ -215,16 +228,34 @@ const useHandleController = ({
         y: clientY - svgBox.top
       });
 
-      const transformers = {
-        [false]: () => "",
-        rock: () => setRockPos(pos),
-        paper: () => setPaperPos(pos),
-        scissor: () => setScissorPos(pos)
+      const { rockPos, paperPos, scissorPos, record } = state;
+      const center = { x: vSize / 2, y: vSize / 2 };
+      const circ = 2 * Math.PI * radius;
+      if (!record) return "";
+      const getNewAngles = {
+        rock: () => findAngles(pos, scissorPos, paperPos, center),
+        paper: () => findAngles(rockPos, scissorPos, pos, center),
+        scissor: () => findAngles(rockPos, pos, paperPos, center)
       };
+      const [rockToScissor, scissorToPaper, paperToRock] = calculateArcs(
+        getNewAngles[record](),
+        radius
+      );
 
-      transformers[record]();
+      onArcChange({
+        rock: (rockToScissor / circ) * 100,
+        paper: (scissorToPaper / circ) * 100,
+        scissor: (paperToRock / circ) * 100
+      });
+
+      dispatch(
+        actions.bigUpdate({
+          arcs: [rockToScissor, scissorToPaper, paperToRock],
+          [record + "Pos"]: pos
+        })
+      );
     },
-    [record, dragControl]
+    [state.record, dragControl]
   );
 
   useEventListener("mousemove", handler);
@@ -233,16 +264,13 @@ const useHandleController = ({
     <ErrorBoundary>
       <ControllerSVG
         {...props}
-        rockPos={rockPos}
         svgRef={svgRef}
-        toggleRecord={toggleRecord}
-        paperPos={paperPos}
-        scissorPos={scissorPos}
-        onArcChange={onArcChange || setPowerLevels}
+        toggleRecord={arg => dispatch(actions.toggleRecord(arg))}
+        {...state}
       />
     </ErrorBoundary>
   );
-  return { Controller, powerLevels };
+  return { Controller };
 };
 
 export default useHandleController;

@@ -5,6 +5,7 @@ import entities, { getEntity } from "./entities/entities";
 import { actors as move, getPosition } from "./attributes/body";
 import { actions as validate } from "./attributes/validation";
 import { actions as pathing } from "./attributes/pathPosition";
+import power from "./attributes/power";
 const actors = {
   doneAnimating: id => s => ({ ...s, isAnimating: false })
 };
@@ -14,7 +15,7 @@ export const actions = createActions(actors);
 const reducers = combineReducers({
   entities
 });
-let testFlag = 2;
+
 const director = (
   state = { isAnimating: false, validation: {}, locations: {} },
   prevState = { validation: {}, locations: {} },
@@ -31,15 +32,17 @@ const director = (
       return s;
       // return y > 10 ? prevState : s;
     },
-    s => ({
-      ...s,
-      isAnimating: type in move || type in pathing //!(type === "doneAnimating"),
-    })
+    s =>
+      type in actors
+        ? actors[type](payload)(s)
+        : type in move || type in pathing
+        ? { ...s, isAnimating: true }
+        : { ...s, isAnimating: prevState.isAnimating }
   )(state);
 const directedApp = (...args) => {
   console.groupCollapsed("director args", args[1].type, args);
   try {
-    const res = console.tap(director(reducers(...args), ...args));
+    const res = console.tap(director(reducers(...args), ...args), "res");
     console.groupEnd();
     return res;
     //return director(reducers(...args), ...args);

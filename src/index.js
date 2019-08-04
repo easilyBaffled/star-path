@@ -1,8 +1,10 @@
-import React, { useState, useContext, useEffect, useRef } from "react";
+import * as R from "ramda";
+import _ from "lodash";
+import React, { useState, useContext, useEffect } from "react";
 import ReactDOM from "react-dom";
 import { devToolsEnhancer } from "redux-devtools-extension";
 import { createStore } from "redux";
-import { Provider, useSelector, useDispatch } from "react-redux";
+import { Provider, useSelector, useDispatch, shallowEqual } from "react-redux";
 
 import { motion } from "framer-motion";
 import cs from "console.tap";
@@ -34,6 +36,8 @@ import { useEntityDispatch } from "./util";
 import usePaths, { findNearestPath } from "./usePaths";
 console = cs;
 
+const time = 0.6;
+
 const PathsContext = React.createContext();
 
 const useAnimationEndAction = (id, additionalDispatch) => {
@@ -51,20 +55,34 @@ const getPositionFromPath = (pathRef, len) =>
     ? pathRef.ref.current.getPointAtLength(len)
     : { x: 0, y: 0 };
 
-const Entity = ({ id, moving, ...e }) => {
+const usePositionFromPath = (path, lengthAlongPath) => {
+  const [position, setPosition] = useState(
+    getPositionFromPath(path, lengthAlongPath)
+  );
+
+  useEffect(() => {
+    setPosition(getPositionFromPath(path, lengthAlongPath));
+  }, [path, lengthAlongPath]);
+
+  return position;
+};
+
+const Entity = React.memo(({ id, moving, ...e }) => {
   const dispatch = useEntityDispatch(id);
   const radius = getRadius(e);
-  const enginePower = getEnginePower(e);
   const { paths, findNearestPath } = useContext(PathsContext);
 
   const path = paths[getPathId(e)];
 
   const lengthAlongPath = getLength(e);
 
-  const { x, y } = getPositionFromPath(path, lengthAlongPath);
+  const { x, y } = usePositionFromPath(path, lengthAlongPath);
 
   useEffect(() => {
     const nearestPathId = findNearestPath({ x, y, r: radius });
+    if (nearestPathId && nearestPathId !== getPathId(e)) {
+      console.log(paths[nearestPathId].requirement, e.power);
+    }
 
     if (
       nearestPathId &&
@@ -73,18 +91,17 @@ const Entity = ({ id, moving, ...e }) => {
     )
       dispatch(pathPositionActions.changePath(nearestPathId));
 
-    if (lengthAlongPath < 10000 && !moving)
-      dispatch(pathPositionActions.increaseLength(enginePower));
-  }, [moving, dispatch, enginePower, lengthAlongPath]);
+    if (lengthAlongPath < 1000 && !moving)
+      dispatch(pathPositionActions.increaseLength(getEnginePower(e)));
+  }, [moving, dispatch, lengthAlongPath]);
 
   const variants = {
     move: {
-      transition: { ease: "linear", duration: 0.2 },
       cx: x,
       cy: y
     },
     shake: {
-      transition: { duration: 0.6 },
+      transition: { duration: time },
       cx: [null, x - 4, x + 4, x - 8, x + 8, x]
     }
   };
@@ -93,13 +110,14 @@ const Entity = ({ id, moving, ...e }) => {
     <motion.circle
       key={id}
       className="box"
-      cx={getPositionFromPath(path, 0).x}
-      cy={getPositionFromPath(path, 0).y}
+      cx={x}
+      cy={y}
       r={radius}
       style={{
         fill: "tomato",
         z: 0
       }}
+      transition={{ ease: "linear", duration: time }}
       animate={variants[isInvalidMove(e) ? "shake" : "move"]}
       onAnimationComplete={useAnimationEndAction(
         id,
@@ -109,14 +127,19 @@ const Entity = ({ id, moving, ...e }) => {
       )}
     />
   );
-};
-
-const Test = React.forwardRef((props, ref) => {
-  const moving = useSelector(isAnimating);
-  return useSelector(getEntitiesArray).map(e => (
-    <Entity ref={ref} key={e.id} {...e} moving={moving} />
-  ));
 });
+
+const Test = () => {
+  const moving = useSelector(isAnimating);
+  // console.log("ISMOVING", moving);
+  // const e = useSelector(getEntity("player"));
+  // const ignorePower = R.omit(["power"]);
+  // return <Entity key={"player"} moving={moving} {...ignorePower(e)} />;
+
+  return useSelector(getEntitiesArray, shallowEqual).map(e => (
+    <Entity key={e.id} {...e} moving={moving} />
+  ));
+};
 
 const PowerLevels = () => {
   const { totalPower, engine, weapons, shields } = useSelector(s =>
@@ -143,10 +166,12 @@ const PowerLevels = () => {
   );
 };
 
-const Game = ({ paths }) => {
+const HandleController = ({ paths }) => {
+  //const dispatch = useDispatch();
   const playerDispatch = useEntityDispatch("player");
   const { Controller } = useHandleController({
     onArcChange: ({ rock, paper, scissor }) => {
+      //console.log(...[rock, paper, scissor].map(Math.ceil));
       playerDispatch(
         powerActions.setPowerLevels({
           engine: rock,
@@ -159,23 +184,26 @@ const Game = ({ paths }) => {
   return (
     <div className="App">
       <Controller />
-      <svg viewBox="0 0 700 600" height="50vh" width="50vw">
-        {Object.entries(paths).map(([id, { instructions, ref }]) => (
-          <path
-            key={id}
-            stroke="#0268B1"
-            strokeWidth="5"
-            fill="none"
-            ref={ref}
-            d={instructions}
-          />
-        ))}
-        <Test />
-      </svg>
       <PowerLevels />
     </div>
   );
 };
+
+const SVG = React.memo(({ paths }) => (
+  <svg viewBox="0 0 700 600" height="50vh" width="50vw">
+    {Object.entries(paths).map(([id, { instructions, ref }]) => (
+      <path
+        key={id}
+        stroke="#0268B1"
+        strokeWidth="5"
+        fill="none"
+        ref={ref}
+        d={instructions}
+      />
+    ))}
+    <Test />
+  </svg>
+));
 
 function App() {
   const paths = usePaths();
@@ -185,7 +213,10 @@ function App() {
       value={{ paths, findNearestPath: findNearestPath(paths) }}
     >
       <Provider store={store}>
-        <Game paths={paths} />
+        <div className="App">
+          <HandleController />
+          <SVG paths={paths} />
+        </div>
       </Provider>
     </PathsContext.Provider>
   );
